@@ -4,3 +4,26 @@ export const RESOLUTIONS = {
     "720p": 720,
     "1080p": 1080
 }
+
+export const JOB_STATUS = {
+    QUEUED: "QUEUED",
+    PROCESSING: "PROCESSING",
+    COMPLETED: "COMPLETED",
+    FAILED: "FAILED"
+};
+
+export const JOB_TRANSITIONS = {
+    [JOB_STATUS.QUEUED]: [
+        JOB_STATUS.PROCESSING,
+        JOB_STATUS.FAILED
+    ],
+
+    [JOB_STATUS.PROCESSING]: [
+        JOB_STATUS.FAILED,
+        JOB_STATUS.COMPLETED
+    ],
+
+    [JOB_STATUS.COMPLETED]: [],
+    [JOB_STATUS.FAILED]: []
+
+};

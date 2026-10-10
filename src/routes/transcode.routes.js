@@ -4,9 +4,11 @@ import { randomUUID } from 'node:crypto';
 import path from "node:path"
 import { access } from 'node:fs/promises';
 import { transcode } from '../services/transcode.service.js';
-import { MAX_UPLOAD_SIZE, RESOLUTIONS } from '../constants.js';
+import { MAX_UPLOAD_SIZE, RESOLUTIONS, JOB_STATUS } from '../constants.js';
 import { error } from 'node:console';
 import { unlink } from 'node:fs/promises';
+import { createJob } from '../repositories/job.repository.js';
+
 
 const router = express.Router();
 
@@ -61,48 +63,53 @@ function handleUpload(req, res, next) {
 
 
 router.post("/", handleUpload , async (req, res) => {
-    const outputPath = path.join("outputs", `${randomUUID()}.mp4`);
-
+    
     if(!req.file) {
         return res.status(400).json({
             message: "Please upload Video"
         })
     }
-
+    
     const resolution = req.body.resolution || "720p";
     if(!(resolution in RESOLUTIONS)){
         await unlink(req.file.path);
-
+        
         return res.status(400).json({
             message: "Invalid Resolution. Choose 480p, 720p, 1080p"
         })
     }
+    const jobId = randomUUID();
+    const outputPath = path.join("outputs", `${jobId}.mp4`);
+
     try{
-        await transcode(req.file.path, outputPath, RESOLUTIONS[resolution]); //inputpath, outputpath.
-        res.json({
-            message: "Video Transcoded Successfully.",
-            outputFile: path.basename(outputPath) 
+
+        const job = await createJob({
+            id: jobId,
+            inputPath: req.file.path,
+            outputPath: outputPath,
+            resolution
+        });
+
+        // await transcode(req.file.path, outputPath, RESOLUTIONS[resolution]); //inputpath, outputpath.
+        return res.status(202).json({
+            message: "Video Queued Successfully.",
+            jobId: job.id,
+            status: job.status
         })
     }catch(error){
-        console.error("Transcoding failed: ", error);
+        console.error("Failed to create Video Job: ", error);
 
         try{
-            await unlink(outputPath);
+            await unlink(req.file.path);
         }catch(cleanupError){
             if(cleanupError.code !== "ENOENT"){
-                console.error("Failed to delete partial Output: ", cleanupError);
+                console.error("Failed to delete uploaded video: ", cleanupError);
             }
         }
 
         res.status(500).json({
-            message: "video transcoding failed."
+            message: "failed to create video Job."
         })
-    }finally{
-        try{
-            await unlink(req.file.path);
-        }catch(error){
-            console.error("Failed to delete Uploaded Video: ", error);
-        }
     }
 
 });

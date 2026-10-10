@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from 'express';
 import { mkdir } from 'node:fs/promises'
 import transcodeRouter from './routes/transcode.routes.js';
+import jobRouter from './routes/jobs.routes.js';
 
 
 const app = express();
@@ -16,12 +17,15 @@ app.get("/" , (req, res) => {
 })
 
 app.use("/transcode", transcodeRouter);
-
+app.use("/jobs", jobRouter);
 
 await mkdir("outputs", { recursive: true});
 await mkdir("uploads", { recursive: true});
 
-app.listen(PORT, () => {
-    console.log(`Server is running at PORT ${PORT || 3000}`);
-})
+const server = app.listen(PORT || 3000, () => {
+    console.log("Server listening on port :", PORT);
+});
 
+server.on("error", (err) => {
+    console.error("Server failed to start:", err);
+});
